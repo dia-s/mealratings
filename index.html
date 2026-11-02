@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mittagstisch</title>
+<meta name="description" content="Anonyme Sterne-Bewertungen für das Mittagessen.">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="referrer" content="no-referrer">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&display=swap">
+<style>
+*{box-sizing:border-box}
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+[hidden]{display:none!important}
+form.stack{display:flex;flex-direction:column;gap:16px}
+/* Layout: one calm column like a printed Speiseplan; meal cards as tray slips, ratings sheet slides up from the bottom */
+:root{
+  --bg:#EEF3F1; --surface:#FFFFFF; --ink:#14302A; --muted:#566C66; --line:#D3DEDA;
+  --accent:#0D7363; --accent-ink:#FFFFFF; --accent-soft:#DCEEEA; --star:#D9930A; --warn:#B4472A; --warn-soft:#F7E3DC;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E1917; --surface:#162522; --ink:#E2EDE9; --muted:#97ACA6; --line:#2A3C38;
+  --accent:#43C2AA; --accent-ink:#06201B; --accent-soft:#183B35; --star:#F0B533; --warn:#F08A6C; --warn-soft:#3A221B; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1917; --surface:#162522; --ink:#E2EDE9; --muted:#97ACA6; --line:#2A3C38;
+  --accent:#43C2AA; --accent-ink:#06201B; --accent-soft:#183B35; --star:#F0B533; --warn:#F08A6C; --warn-soft:#3A221B; color-scheme:dark}
+
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5}
+.wrap{max-width:760px;margin:0 auto;padding-block:28px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:20px}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+h1{font-size:clamp(1.7rem,5vw,2.3rem);line-height:1.1}
+h2{font-size:1.35rem}
+h3{font-size:1.15rem;line-height:1.25}
+p{margin:0}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+.top{display:flex;gap:16px;align-items:flex-start;justify-content:space-between}
+.brand{display:flex;flex-direction:column;gap:6px;min-width:0}
+.brand p{color:var(--muted);max-width:52ch}
+.lang{display:flex;border:1px solid var(--line);border-radius:999px;padding:3px;background:var(--surface);flex:none}
+.lang button{border:0;background:none;padding:4px 12px;border-radius:999px;font-weight:700;font-size:.85rem;letter-spacing:.06em;cursor:pointer;color:var(--muted)}
+.lang button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+
+.notice{background:var(--accent-soft);border-radius:var(--r);padding:12px 14px;font-size:.95rem}
+.notice.warn{background:var(--warn-soft)}
+
+.tools{display:flex;flex-direction:column;gap:12px}
+.searchrow{display:flex;gap:10px;flex-wrap:wrap}
+.searchrow input{flex:1 1 220px;min-width:0}
+input[type=search],input[type=text],select{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:10px 16px;font-weight:700;cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.small{padding:6px 12px;font-size:.9rem}
+.btn.quiet{border-color:transparent;background:none;color:var(--muted);font-weight:400}
+.btn.quiet:hover{color:var(--ink)}
+.btn.danger{color:var(--warn);border-color:var(--warn)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 12px;font-size:.9rem;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.code{font-size:.72rem;font-weight:700;letter-spacing:.05em;border:1px solid currentColor;border-radius:4px;padding:0 4px;line-height:1.35}
+.filterline{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between}
+.sort{display:flex;align-items:center;gap:8px;font-size:.9rem;color:var(--muted)}
+.sort select{padding:6px 10px;color:var(--ink)}
+.count{color:var(--muted);font-size:.9rem}
+
+.list{display:flex;flex-direction:column;gap:8px}
+/* one compact row per meal: name | overall | sub-scores + actions */
+.meal{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;
+  display:grid;grid-template-columns:minmax(0,1fr) 96px 220px;gap:8px 18px;align-items:center}
+.mmain{min-width:0}
+.mname{overflow-wrap:anywhere;font-size:1.05rem}
+.men{color:var(--muted);font-size:.9rem;line-height:1.35;margin-top:2px;overflow-wrap:anywhere}
+.meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:4px;color:var(--muted);font-size:.85rem}
+.meta:empty{display:none}
+.mscore{display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center}
+.big{font-family:var(--display);font-size:1.6rem;line-height:1;font-variant-numeric:tabular-nums}
+.none{font-size:.8rem;color:var(--muted);line-height:1.3}
+.n{font-size:.75rem;color:var(--muted)}
+.stars{position:relative;display:inline-block;font-size:1rem;letter-spacing:2px;line-height:1;color:var(--line)}
+.stars::before{content:"★★★★★"}
+.stars span{position:absolute;inset:0 auto 0 0;overflow:hidden;white-space:nowrap;color:var(--star)}
+.stars span::before{content:"★★★★★"}
+.mside{display:flex;flex-direction:column;gap:6px;min-width:0}
+.mini{display:flex;flex-direction:column;gap:2px;font-size:.8rem}
+.mrow{display:grid;grid-template-columns:5.6em 1fr 2em;gap:8px;align-items:center}
+.ml{color:var(--muted)}
+.mv{font-variant-numeric:tabular-nums;text-align:right}
+.track{height:5px;background:var(--accent-soft);border-radius:99px;overflow:hidden;display:block}
+.fill{height:100%;background:var(--accent);border-radius:99px;display:block}
+.mact{display:flex;flex-wrap:wrap;gap:2px 12px;align-items:center;font-size:.85rem}
+.mine{color:var(--accent);font-weight:700}
+.lnk{border:0;background:none;padding:2px 0;cursor:pointer;color:var(--accent);font-weight:700;text-decoration:underline;text-underline-offset:3px}
+.lnk.quiet{color:var(--muted);font-weight:400;text-decoration:none}
+.lnk.quiet:hover{color:var(--ink)}
+.lnk.danger{color:var(--warn);font-weight:700}
+.lnk:disabled{cursor:default;opacity:.7}
+.flag{font-size:.75rem;font-weight:700;color:var(--warn);background:var(--warn-soft);border-radius:4px;padding:1px 6px}
+.spacer{flex:1}
+@media (max-width:600px){
+  .meal{grid-template-columns:minmax(0,1fr) auto;gap:8px 12px}
+  .mscore{align-items:flex-end;text-align:right}
+  .mside{grid-column:1/-1;flex-direction:row;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px 12px;border-top:1px solid var(--line);padding-top:8px}
+  .mini{flex-direction:row;flex-wrap:wrap;gap:2px 12px}
+  .mrow{display:inline-flex;gap:4px}
+  .mrow .track{display:none}
+  .mv{font-weight:700}
+}
+
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:var(--r);padding:28px 20px;display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+.empty p{color:var(--muted)}
+.legend{color:var(--muted);font-size:.85rem;display:flex;flex-wrap:wrap;gap:6px 14px}
+.legend span{display:inline-flex;gap:5px;align-items:center}
+footer{color:var(--muted);font-size:.85rem;border-top:1px solid var(--line);padding-top:14px}
+
+.sheet{position:fixed;inset:0;z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.scrim{position:absolute;inset:0;background:rgba(5,20,16,.45)}
+.panel{position:relative;background:var(--surface);width:min(560px,100%);max-height:92vh;overflow:auto;border-radius:16px 16px 0 0;
+  padding-block:20px calc(20px + env(safe-area-inset-bottom,0px));padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:16px;animation:up .2s ease-out}
+@media (min-width:640px){.sheet{align-items:center}.panel{border-radius:16px}}
+@keyframes up{from{transform:translateY(24px);opacity:.6}}
+@media (prefers-reduced-motion:reduce){.panel{animation:none}}
+.phead{display:flex;justify-content:space-between;gap:12px;align-items:start}
+.phead h2{overflow-wrap:anywhere;min-width:0}
+fieldset{border:0;padding:0;margin:0;display:flex;flex-direction:column;gap:6px}
+legend{padding:0;font-weight:700;margin-bottom:4px}
+legend small{font-weight:400;color:var(--muted)}
+.rate{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+.rate input{position:absolute;opacity:0;width:1px;height:1px}
+.rate label{font-size:2rem;line-height:1;color:var(--line);cursor:pointer;padding:2px}
+.rate label.on{color:var(--star)}
+.rate input:focus-visible+label{outline:3px solid var(--accent);border-radius:4px}
+.rate .clear{margin-left:6px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field>span{font-weight:700}
+.hint{font-size:.85rem;color:var(--muted)}
+.matches{display:flex;flex-direction:column;gap:6px;background:var(--accent-soft);border-radius:var(--r);padding:12px}
+.matches.block{background:var(--warn-soft)}
+.match{display:flex;gap:10px;align-items:center;justify-content:space-between}
+.match span{min-width:0;overflow-wrap:anywhere}
+.checks{display:flex;flex-wrap:wrap;gap:6px}
+.checks label{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:999px;padding:5px 12px;cursor:pointer;font-size:.92rem}
+.checks input{accent-color:var(--accent)}
+.confirm{display:flex;gap:8px;align-items:flex-start;font-size:.95rem}
+.confirm input{margin-top:4px;accent-color:var(--accent)}
+.actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.err{color:var(--warn);font-size:.9rem}
+.ok{color:var(--accent);font-weight:700}
+.drop{position:relative;border:2px dashed var(--line);border-radius:var(--r);padding:24px 16px;display:flex;flex-direction:column;gap:10px;align-items:center;text-align:center;cursor:pointer}
+.drop:hover{border-color:var(--accent)}
+.drop input{position:absolute;opacity:0;width:1px;height:1px}
+.xlist{display:flex;flex-direction:column;gap:8px}
+.xrow{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:start;border:1px solid var(--line);border-radius:var(--r);padding:10px}
+.xrow input[type=checkbox]{margin-top:12px;width:18px;height:18px;accent-color:var(--accent)}
+.xrow>div{display:flex;flex-direction:column;gap:6px;min-width:0}
+.xrow input[type=text]{width:100%;padding:8px 10px}
+.xnote{font-size:.85rem;color:var(--muted)}
+.xnote.dup{color:var(--warn)}
+.spin{width:28px;height:28px;border:3px solid var(--accent-soft);border-top-color:var(--accent);border-radius:50%;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1 data-i="title">Mittagstisch</h1>
+      <p data-i="sub"></p>
+    </div>
+    <div class="lang" role="group" aria-label="Sprache / Language">
+      <button id="lang-de" type="button">DE</button>
+      <button id="lang-en" type="button">EN</button>
+    </div>
+  </header>
+
+  <div id="notice" class="notice" hidden></div>
+
+  <section class="tools">
+    <div class="searchrow">
+      <input id="q" type="search" autocomplete="off">
+      <button id="addBtn" class="btn primary" type="button" data-i="add"></button>
+      <button id="photoBtn" class="btn" type="button" data-i="photo" hidden></button>
+    </div>
+    <div class="filterline">
+      <div class="chips" id="tagChips"></div>
+      <label class="sort"><span data-i="sortBy"></span><select id="sort"></select></label>
+    </div>
+  </section>
+
+  <p id="count" class="count"></p>
+  <main id="list" class="list"></main>
+  <p class="legend" id="legend"></p>
+  <footer data-i="foot"></footer>
+</div>
+
+<div id="sheet" class="sheet" hidden>
+  <div class="scrim" data-close></div>
+  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" id="panel"></div>
+</div>
+
+<script>
+/* ===== Paste your Google Apps Script web app address here (ends in /exec) ===== */
+const API_URL = "PASTE_YOUR_WEB_APP_URL_HERE";
+
+const T = {
+  de:{
+    sub:"Bewerte die Hauptgerichte, damit die Nächsten wissen, was sie wählen sollen. Anonym, nur Sterne.",
+    add:"Gericht hinzufügen", photo:"Speiseplan-Foto", search:"Gerichte suchen", sortBy:"Sortieren",
+    sort:{overall:"Beste Gesamtnote",tasty:"Am leckersten",nutritious:"Am nahrhaftesten",filling:"Am sättigendsten",count:"Meiste Bewertungen",newest:"Neueste",az:"A–Z"},
+    tags:{veg:"Vegetarisch",vegan:"Vegan",fish:"Fisch",nopork:"Ohne Schwein",light:"Schonkost"},
+    codes:{veg:"V",vegan:"VG",fish:"F",nopork:"oS",light:"SK"},
+    m:{overall:"Gesamt",tasty:"Lecker",nutritious:"Nahrhaft",filling:"Sättigend"},
+    ratings:n=>n===1?"1 Bewertung":n+" Bewertungen",
+    noRatings:"Noch nicht bewertet",
+    rate:"Bewerten", change:"Ändern", youRated:n=>"Du: "+n+" ★",
+    report:"Melden", reported:"Gemeldet", flagged:"Gemeldet", remove:"Entfernen", removeSure:"Wirklich entfernen?", keep:"Behalten",
+    merge:"Zusammenführen", mTitle:"Doppelten Eintrag zusammenführen", mWith:n=>"Welcher Eintrag ist dasselbe Gericht wie „"+n+"“?",
+    mSearch:"Gericht suchen", mKeep:"Welchen Namen behalten?", mInfo:(a,b)=>"Die "+a+" und "+b+" Bewertungen werden zusammengezählt. Der andere Eintrag wird gelöscht.",
+    mDo:"Zusammenführen", mBack:"Anderes Gericht wählen", mDone:"Zusammengeführt.", mNone:"Kein passendes Gericht gefunden.",
+    shown:(a,b)=>a===b?b+" Gerichte":a+" von "+b+" Gerichten",
+    emptyTitle:"Noch keine Gerichte", emptyText:"Füge das heutige Mittagessen als erstes Gericht hinzu und gib ihm Sterne.",
+    noMatch:"Kein Gericht passt zu diesen Filtern.", clearFilters:"Filter zurücksetzen",
+    rateTitle:"Gericht bewerten", required:"Pflicht", optional:"optional", clear:"Leeren",
+    save:"Speichern", cancel:"Abbrechen", removeMine:"Meine Bewertung löschen", close:"Schließen",
+    needOverall:"Bitte gib mindestens eine Gesamtnote.",
+    addTitle:"Gericht hinzufügen", nameLabel:"Name wie auf dem Speiseplan", namePh:"z. B. Linseneintopf mit Würstchen",
+    tagLabel:"Merkmale", tagHint:"Alles ankreuzen, was zutrifft.",
+    similar:"Ähnliche Gerichte gibt es schon:", exact:"Dieses Gericht gibt es schon. Bewerte es stattdessen.",
+    rateThis:"Dieses bewerten", notSame:"Keines davon ist mein Gericht.",
+    addSave:"Hinzufügen und bewerten",
+    needName:"Bitte gib einen Namen ein.", needConfirm:"Bitte bestätige, dass es kein Duplikat ist.",
+    loading:"Gerichte werden geladen …",
+    loadErr:"Die Gerichte konnten nicht geladen werden. Prüfe die Verbindung und lade die Seite neu.",
+    notConfigured:"Die Seite ist noch nicht mit der Google-Tabelle verbunden. Trage die Web-App-Adresse bei API_URL ein.",
+    adminOn:"Verwaltung aktiv: Du kannst Gerichte zusammenführen und entfernen.", notAdmin:"Der Verwaltungsschlüssel stimmt nicht.",
+    busy:"Gerade ist viel los. Versuch es in ein paar Minuten noch einmal.", saving:"Wird gespeichert …",
+    saveErr:"Speichern hat nicht geklappt. Prüfe die Verbindung und versuche es noch einmal.",
+    legend:"Speiseplan-Kürzel:",
+    pTitle:"Gerichte vom Speiseplan übernehmen",
+    pHint:"Fotografiere den Wochenplan gerade und gut lesbar. Die Hauptgerichte werden ausgelesen, und du wählst aus, welche hinzukommen.",
+    pPick:"Foto aufnehmen oder auswählen", pReading:"Speiseplan wird gelesen … das kann bis zu einer Minute dauern.",
+    pFound:n=>n+" Hauptgerichte gefunden. Prüfe die Namen und wähle aus, was neu hinzukommen soll.",
+    pNone:"Auf dem Foto wurden keine Gerichte erkannt. Versuche ein schärferes Foto.",
+    pDup:"Gibt es schon", pSim:n=>"Ähnlich wie: "+n,
+    pAdd:n=>n===1?"1 Gericht hinzufügen":n+" Gerichte hinzufügen", pAgain:"Anderes Foto",
+    pDone:(a,s)=>a+" hinzugefügt"+(s?", "+s+" gab es schon":"")+".",
+    pLimit:"Heute wurden schon 5 Fotos gelesen. Versuch es morgen wieder oder füge Gerichte einzeln hinzu.",
+    pNoKey:"Das Lesen von Fotos ist noch nicht eingerichtet.",
+    pErr:"Das Foto konnte nicht gelesen werden. Versuch es noch einmal.",
+    foot:"Gespeichert werden nur Gerichte und Sterne, ohne Namen oder Kommentare. Deine Bewertung kannst du nur in diesem Browser ändern."
+  },
+  en:{
+    sub:"Rate the main dishes so the next people know what to pick. Anonymous, stars only.",
+    add:"Add a meal", photo:"Menu photo", search:"Search meals", sortBy:"Sort",
+    sort:{overall:"Best overall",tasty:"Tastiest",nutritious:"Most nutritious",filling:"Most filling",count:"Most ratings",newest:"Newest",az:"A–Z"},
+    tags:{veg:"Vegetarian",vegan:"Vegan",fish:"Fish",nopork:"No pork",light:"Light diet"},
+    codes:{veg:"V",vegan:"VG",fish:"F",nopork:"oS",light:"SK"},
+    m:{overall:"Overall",tasty:"Tasty",nutritious:"Nutritious",filling:"Filling"},
+    ratings:n=>n===1?"1 rating":n+" ratings",
+    noRatings:"Not rated yet",
+    rate:"Rate", change:"Change", youRated:n=>"You: "+n+" ★",
+    report:"Report", reported:"Reported", flagged:"Reported", remove:"Remove", removeSure:"Really remove?", keep:"Keep",
+    merge:"Merge", mTitle:"Merge duplicate entries", mWith:n=>"Which entry is the same dish as “"+n+"”?",
+    mSearch:"Search meals", mKeep:"Which name should stay?", mInfo:(a,b)=>"The "+a+" and "+b+" ratings are added together. The other entry is deleted.",
+    mDo:"Merge", mBack:"Choose a different meal", mDone:"Merged.", mNone:"No matching meal found.",
+    shown:(a,b)=>a===b?b+" meals":a+" of "+b+" meals",
+    emptyTitle:"No meals yet", emptyText:"Add today's lunch as the first meal and give it some stars.",
+    noMatch:"No meal matches these filters.", clearFilters:"Clear filters",
+    rateTitle:"Rate meal", required:"required", optional:"optional", clear:"Clear",
+    save:"Save", cancel:"Cancel", removeMine:"Delete my rating", close:"Close",
+    needOverall:"Please give at least an overall rating.",
+    addTitle:"Add a meal", nameLabel:"Name as on the menu", namePh:"e.g. Linseneintopf mit Würstchen",
+    tagLabel:"Features", tagHint:"Tick everything that applies.",
+    similar:"Similar meals already exist:", exact:"This meal is already listed. Rate it instead.",
+    rateThis:"Rate this one", notSame:"None of these is my meal.",
+    addSave:"Add and rate",
+    needName:"Please enter a name.", needConfirm:"Please confirm it isn't a duplicate.",
+    loading:"Loading meals…",
+    loadErr:"Couldn't load the meals. Check your connection and reload the page.",
+    notConfigured:"This page isn't connected to the Google Sheet yet. Put the web app address in API_URL.",
+    adminOn:"Admin mode: you can merge and remove meals.", notAdmin:"The admin key isn't valid.",
+    busy:"It's busy right now. Please try again in a few minutes.", saving:"Saving…",
+    saveErr:"Couldn't save. Check your connection and try again.",
+    legend:"Menu codes:",
+    pTitle:"Add meals from the menu",
+    pHint:"Take a straight, readable photo of the weekly plan. The main dishes are read out and you choose which ones to add.",
+    pPick:"Take or choose a photo", pReading:"Reading the menu… this can take up to a minute.",
+    pFound:n=>"Found "+n+" main dishes. Check the names and choose which ones to add.",
+    pNone:"No dishes were found in the photo. Try a sharper photo.",
+    pDup:"Already listed", pSim:n=>"Similar to: "+n,
+    pAdd:n=>n===1?"Add 1 meal":"Add "+n+" meals", pAgain:"Different photo",
+    pDone:(a,s)=>a+" added"+(s?", "+s+" were already listed":"")+".",
+    pLimit:"5 photos have already been read today. Try again tomorrow or add meals one by one.",
+    pNoKey:"Reading photos isn't set up yet.",
+    pErr:"Couldn't read the photo. Please try again.",
+    foot:"Only meals and stars are stored, with no names or comments. You can only change your rating from this browser."
+  }
+};
+const TAGS=["veg","vegan","light"];
+const METRICS=["overall","tasty","nutritious","filling"];
+const KEY={overall:"o",tasty:"t",nutritious:"n",filling:"f"};
+
+const S={lang:"de",status:"loading",meals:[],photoOn:false,mineIds:{},mine:{},adminKey:null,owner:false,
+  q:"",tags:new Set(),sort:"overall",sheet:null,confirmRemove:null,photo:null};
+
+/* ---------- storage (per browser only) ---------- */
+function lsGet(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+S.lang=lsGet("mt-lang",null)||((navigator.language||"de").toLowerCase().startsWith("de")?"de":"en");
+{const s=lsGet("mt-sort",null);if(s&&T.en.sort[s])S.sort=s;}
+S.mineIds=lsGet("mt-mine",{})||{};
+{const m=location.hash.match(/admin=([A-Za-z0-9]+)/);
+  if(m){lsSet("mt-admin",m[1]);history.replaceState(null,"",location.pathname+location.search);}
+  S.adminKey=lsGet("mt-admin",null);}
+
+/* ---------- server ---------- */
+// Plain-text POST keeps the request "simple", so the browser sends it to Google without a CORS preflight.
+async function api(action,body){
+  const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action,...(body||{})})});
+  const j=await r.json();if(j&&j.error){const e=new Error(j.error);e.code=j.error;throw e;}return j;}
+async function load(){
+  try{const r=await fetch(API_URL+"?action=data");const j=await r.json();if(j.error)throw new Error(j.error);
+    S.meals=j.meals||[];S.photoOn=!!j.photo;S.status="ready";}
+  catch(e){if(S.status!=="ready")S.status="error";}
+  render();if(S.sheet&&S.sheet.kind==="merge")mergeSheet(S.sheet.arg);
+}
+async function loadMine(){
+  const ids=[...new Set(Object.values(S.mineIds))];if(!ids.length){S.mine={};return render();}
+  try{const {mine}=await api("mine",{ids});const next={},map={};
+    // Key by the meal each rating points to now, so ratings follow a merge.
+    for(const [rid,r] of Object.entries(mine||{})){next[r.meal]={rid,...r};map[r.meal]=rid;}
+    S.mine=next;S.mineIds=map;lsSet("mt-mine",map);}catch(e){}
+  render();
+}
+setInterval(()=>{if(!document.hidden&&!S.sheet)load();},60000);
+
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const t=()=>T[S.lang];
+
+function norm(s){return String(s||"").toLowerCase().replace(/ä/g,"ae").replace(/ö/g,"oe").replace(/ü/g,"ue").replace(/ß/g,"ss")
+  .normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]+/g," ").trim();}
+function lev(a,b){const m=a.length,n=b.length;if(!m)return n;if(!n)return m;let p=Array.from({length:n+1},(_,j)=>j);
+  for(let i=1;i<=m;i++){const c=[i];for(let j=1;j<=n;j++)c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1));p=c;}return p[n];}
+function sim(a,b){if(!a||!b)return 0;const A=a.replace(/ /g,""),B=b.replace(/ /g,"");if(A===B)return 1;
+  let r=1-lev(A,B)/Math.max(A.length,B.length);
+  if(A.length>=4&&B.length>=4&&(A.includes(B)||B.includes(A)))r=Math.max(r,.8);
+  const ta=a.split(" ").filter(w=>w.length>=4),tb=b.split(" ").filter(w=>w.length>=4);
+  for(const w of ta)for(const v of tb){if(w===v||(w.length>=6&&v.length>=6&&1-lev(w,v)/Math.max(w.length,v.length)>=.8))r=Math.max(r,.7);}
+  return r;}
+function matchesFor(name){const n=norm(name);if(n.length<3)return[];
+  return S.meals.map(m=>({m,s:sim(n,norm(m.name))})).filter(x=>x.s>=.55).sort((a,b)=>b.s-a.s).slice(0,5);}
+const isDup=name=>matchesFor(name).some(x=>x.s===1);
+
+const fmt=v=>v==null?"–":v.toLocaleString(S.lang==="de"?"de-DE":"en-GB",{minimumFractionDigits:1,maximumFractionDigits:1});
+const starsHtml=v=>`<span class="stars" aria-hidden="true"><span style="width:${v==null?0:v/5*100}%"></span></span>`;
+const tagCodes=tags=>(tags||[]).filter(k=>TAGS.includes(k)).map(k=>`<span title="${esc(t().tags[k])}"><b class="code">${t().codes[k]}</b></span>`).join("");
+const enLine=m=>S.lang==="en"&&m&&m.name_en?`<p class="men" lang="en">${esc(m.name_en)}</p>`:"";
+const errText=e=>{const L=t(),c=e&&e.code;return c==="busy"?L.busy:c==="not_admin"?L.notAdmin:L.saveErr;};
+
+/* ---------- static text ---------- */
+function applyLang(){
+  document.documentElement.lang=S.lang;
+  document.querySelectorAll("[data-i]").forEach(el=>{const v=t()[el.dataset.i];if(typeof v==="string")el.textContent=v;});
+  $("q").placeholder=t().search;$("q").setAttribute("aria-label",t().search);
+  $("lang-de").setAttribute("aria-pressed",S.lang==="de");$("lang-en").setAttribute("aria-pressed",S.lang==="en");
+  $("sort").innerHTML=Object.entries(t().sort).map(([k,v])=>`<option value="${k}"${k===S.sort?" selected":""}>${esc(v)}</option>`).join("");
+  $("legend").innerHTML=`<span>${esc(t().legend)}</span>`+TAGS.map(k=>`<span><b class="code">${t().codes[k]}</b>${esc(t().tags[k])}</span>`).join("");
+  render();
+  if(S.sheet)openSheet(S.sheet.kind,S.sheet.arg,true);
+}
+function setLang(l){S.lang=l;lsSet("mt-lang",l);applyLang();}
+$("lang-de").onclick=()=>setLang("de");$("lang-en").onclick=()=>setLang("en");
+
+/* ---------- main render ---------- */
+function render(){
+  const L=t();
+  $("tagChips").innerHTML=TAGS.map(k=>`<button type="button" class="chip" data-tag="${k}" aria-pressed="${S.tags.has(k)}"><b class="code">${L.codes[k]}</b>${esc(L.tags[k])}</button>`).join("");
+  const n=$("notice");
+  if(S.status==="error"){n.hidden=false;n.className="notice warn";n.textContent=L.loadErr;}
+  else if(S.owner){n.hidden=false;n.className="notice";n.textContent=L.adminOn;}
+  else n.hidden=true;
+  $("addBtn").disabled=S.status!=="ready";
+  $("photoBtn").hidden=!(S.status==="ready"&&S.photoOn);
+  const list=$("list");
+  if(S.status==="loading"){list.innerHTML=`<p class="count">${esc(L.loading)}</p>`;$("count").textContent="";return;}
+  if(S.status==="error"){list.innerHTML="";$("count").textContent="";return;}
+  if(!S.meals.length){$("count").textContent="";
+    list.innerHTML=`<div class="empty"><h2>${esc(L.emptyTitle)}</h2><p>${esc(L.emptyText)}</p><button type="button" class="btn primary" data-act="add">${esc(L.add)}</button></div>`;return;}
+  const q=norm(S.q);
+  let rows=S.meals.filter(m=>[...S.tags].every(g=>(m.tags||[]).includes(g))&&(!q||norm(m.name).includes(q)||norm(m.name_en).includes(q)||sim(q,norm(m.name))>=.7));
+  const key=KEY[S.sort];
+  rows.sort((a,b)=>{
+    if(key){const x=a[key],y=b[key];if(x==null&&y==null)return a.name.localeCompare(b.name);if(x==null)return 1;if(y==null)return -1;return y-x||b.c-a.c;}
+    if(S.sort==="count")return b.c-a.c||(b.o||0)-(a.o||0);
+    if(S.sort==="newest")return (b.created||0)-(a.created||0);
+    return a.name.localeCompare(b.name,S.lang);});
+  $("count").textContent=L.shown(rows.length,S.meals.length);
+  if(!rows.length){list.innerHTML=`<div class="empty"><p>${esc(L.noMatch)}</p><button type="button" class="btn small" data-act="clearf">${esc(L.clearFilters)}</button></div>`;return;}
+  list.innerHTML=rows.map(card).join("");
+}
+function card(m){
+  const L=t(),mine=S.mine[m.id];
+  const rows=["tasty","nutritious","filling"].map(k=>{const v=m[KEY[k]];
+    return `<div class="mrow"><span class="ml">${esc(L.m[k])}</span><span class="track"><span class="fill" style="width:${v==null?0:v/5*100}%"></span></span><span class="mv">${fmt(v)}</span></div>`;}).join("");
+  const conf=S.confirmRemove===m.id;
+  let acts=mine?`<span class="mine">${esc(L.youRated(mine.o))}</span><button type="button" class="lnk" data-act="rate" data-id="${m.id}">${esc(L.change)}</button>`
+               :`<button type="button" class="btn small primary" data-act="rate" data-id="${m.id}">${esc(L.rate)}</button>`;
+  if(S.owner){if(m.flagged)acts+=`<span class="flag">${esc(L.flagged)}</span><button type="button" class="lnk quiet" data-act="keep" data-id="${m.id}">${esc(L.keep)}</button>`;
+    acts+=`<button type="button" class="lnk quiet" data-act="merge" data-id="${m.id}">${esc(L.merge)}</button>`;
+    acts+=`<button type="button" class="lnk ${conf?"danger":"quiet"}" data-act="remove" data-id="${m.id}">${esc(conf?L.removeSure:L.remove)}</button>`;}
+  else acts+=`<button type="button" class="lnk quiet" data-act="report" data-id="${m.id}" ${m.flagged?"disabled":""}>${esc(m.flagged?L.reported:L.report)}</button>`;
+  return `<article class="meal">
+    <div class="mmain"><h3 class="mname" lang="de">${esc(m.name)}</h3>${enLine(m)}<div class="meta">${tagCodes(m.tags)}</div></div>
+    <div class="mscore">${m.c?`<span class="big" aria-label="${esc(L.m.overall)} ${fmt(m.o)}">${fmt(m.o)}</span>${starsHtml(m.o)}<span class="n">${esc(L.ratings(m.c))}</span>`:`<span class="none">${esc(L.noRatings)}</span>`}</div>
+    <div class="mside">${m.c?`<div class="mini">${rows}</div>`:""}<div class="mact">${acts}</div></div>
+  </article>`;
+}
+
+/* ---------- list events ---------- */
+$("q").addEventListener("input",e=>{S.q=e.target.value;render();});
+$("sort").addEventListener("change",e=>{S.sort=e.target.value;lsSet("mt-sort",S.sort);render();});
+$("tagChips").addEventListener("click",e=>{const b=e.target.closest("[data-tag]");if(!b)return;const k=b.dataset.tag;S.tags.has(k)?S.tags.delete(k):S.tags.add(k);render();});
+$("addBtn").onclick=()=>openSheet("add",$("q").value);
+$("photoBtn").onclick=()=>{S.photo=null;openSheet("photo");};
+$("list").addEventListener("click",async e=>{
+  const b=e.target.closest("[data-act]");if(!b)return;const id=b.dataset.id,act=b.dataset.act;
+  if(act==="add")return openSheet("add","");
+  if(act==="clearf"){S.q="";$("q").value="";S.tags.clear();return render();}
+  if(act==="rate")return openSheet("rate",id);
+  if(act==="merge")return openSheet("merge",{src:id});
+  if(act==="report"){b.disabled=true;try{await api("report",{mealId:id});const m=S.meals.find(x=>x.id===id);if(m)m.flagged=true;render();}catch(err){b.disabled=false;}return;}
+  if(act==="keep"){try{await api("unflag",{key:S.adminKey,mealId:id});await load();}catch(err){}return;}
+  if(act==="remove"){
+    if(S.confirmRemove!==id){S.confirmRemove=id;render();return;}
+    S.confirmRemove=null;b.disabled=true;
+    try{await api("remove",{key:S.adminKey,mealId:id});}catch(err){}
+    await load();}
+});
+
+/* ---------- sheets ---------- */
+let lastFocus=null;
+function closeSheet(){S.sheet=null;$("sheet").hidden=true;if(lastFocus)try{lastFocus.focus()}catch(e){}}
+$("sheet").addEventListener("click",e=>{if(e.target.closest("[data-close]"))closeSheet();});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&S.sheet)closeSheet();});
+function openSheet(kind,arg,keep){
+  if(!keep)lastFocus=document.activeElement;
+  S.sheet={kind,arg};$("sheet").hidden=false;
+  if(kind==="rate")rateSheet(arg,keep);else if(kind==="add")addSheet(arg,keep);else if(kind==="merge")mergeSheet(arg);else photoSheet();
+}
+const closeBtn=()=>`<button type="button" class="btn small quiet" data-close aria-label="${esc(t().close)}">✕</button>`;
+
+/* rating */
+function starRow(metric,val,required){const L=t();
+  return `<fieldset><legend>${esc(L.m[metric])} <small>(${esc(required?L.required:L.optional)})</small></legend>
+    <div class="rate">${[1,2,3,4,5].map(i=>`<input type="radio" id="r-${metric}-${i}" name="r-${metric}" value="${i}"${val===i?" checked":""}><label for="r-${metric}-${i}" class="${val>=i?"on":""}" aria-label="${i} / 5">★</label>`).join("")}
+    ${required?"":`<button type="button" class="btn small quiet" data-clear="${metric}">${esc(L.clear)}</button>`}</div></fieldset>`;}
+function readStars(){const v={};for(const m of METRICS){const c=document.querySelector(`input[name="r-${m}"]:checked`);v[m]=c?+c.value:null;}return v;}
+function paintStars(){document.querySelectorAll(".rate").forEach(row=>{const c=row.querySelector("input:checked"),v=c?+c.value:0;
+  row.querySelectorAll("label").forEach((l,i)=>l.classList.toggle("on",i<v));});}
+function rateSheet(mealId,keep){
+  const L=t(),m=S.meals.find(x=>x.id===mealId);if(!m)return closeSheet();
+  const prev=keep&&$("rateForm")?readStars():null,r=S.mine[mealId];
+  const v=prev||{overall:r?.o??null,tasty:r?.t??null,nutritious:r?.n??null,filling:r?.f??null};
+  $("panel").innerHTML=`<div class="phead"><div><p class="hint">${esc(L.rateTitle)}</p><h2 id="sheetTitle" lang="de">${esc(m.name)}</h2>${enLine(m)}</div>${closeBtn()}</div>
+    <form id="rateForm" class="stack" novalidate>
+      ${starRow("overall",v.overall,true)}${starRow("tasty",v.tasty)}${starRow("nutritious",v.nutritious)}${starRow("filling",v.filling)}
+      <p class="err" id="rateErr" role="alert"></p>
+      <div class="actions">${r?`<button type="button" class="btn quiet" id="delMine">${esc(L.removeMine)}</button><span class="spacer"></span>`:""}
+        <button type="button" class="btn" data-close>${esc(L.cancel)}</button><button type="submit" class="btn primary" id="rateSave">${esc(L.save)}</button></div>
+    </form>`;
+  const f=$("rateForm");
+  f.addEventListener("change",paintStars);
+  f.addEventListener("click",e=>{const c=e.target.closest("[data-clear]");if(c){document.querySelectorAll(`input[name="r-${c.dataset.clear}"]`).forEach(i=>i.checked=false);paintStars();}});
+  f.addEventListener("submit",async e=>{e.preventDefault();const vals=readStars();
+    if(!vals.overall){$("rateErr").textContent=L.needOverall;return;}
+    $("rateSave").disabled=true;
+    try{const {id}=await api("rate",{id:r?r.rid:null,mealId,values:vals});
+      S.mineIds[mealId]=id;lsSet("mt-mine",S.mineIds);
+      S.mine[mealId]={rid:id,meal:mealId,o:vals.overall,t:vals.tasty,n:vals.nutritious,f:vals.filling};
+      closeSheet();load();}
+    catch(err){$("rateErr").textContent=errText(err);$("rateSave").disabled=false;}});
+  if(r)$("delMine").onclick=async()=>{try{await api("unrate",{id:r.rid});delete S.mineIds[mealId];delete S.mine[mealId];lsSet("mt-mine",S.mineIds);closeSheet();load();}
+    catch(err){$("rateErr").textContent=errText(err);}};
+  if(!keep)setTimeout(()=>{const x=document.querySelector('input[name="r-overall"]');x&&x.focus();},30);
+}
+
+/* single add */
+function addSheet(initial,keep){
+  const L=t();
+  const prev=keep&&$("addForm")?{name:$("mName").value,tags:[...document.querySelectorAll('input[name="mTag"]:checked')].map(i=>i.value),ok:$("mOk")?.checked}:{name:initial||"",tags:[]};
+  $("panel").innerHTML=`<div class="phead"><h2 id="sheetTitle">${esc(L.addTitle)}</h2>${closeBtn()}</div>
+    <form id="addForm" class="stack" novalidate>
+      <label class="field"><span>${esc(L.nameLabel)}</span><input type="text" id="mName" maxlength="90" autocomplete="off" placeholder="${esc(L.namePh)}" value="${esc(prev.name)}"></label>
+      <div id="matchBox"></div>
+      <fieldset><legend>${esc(L.tagLabel)} <small>(${esc(L.optional)})</small></legend><p class="hint">${esc(L.tagHint)}</p>
+        <div class="checks">${TAGS.map(k=>`<label><input type="checkbox" name="mTag" value="${k}"${prev.tags.includes(k)?" checked":""}><b class="code">${L.codes[k]}</b>${esc(L.tags[k])}</label>`).join("")}</div></fieldset>
+      <p class="err" id="addErr" role="alert"></p>
+      <div class="actions"><button type="button" class="btn" data-close>${esc(L.cancel)}</button><button type="submit" class="btn primary" id="addSave">${esc(L.addSave)}</button></div>
+    </form>`;
+  let st={exact:null,similar:[]};const box=$("matchBox");
+  function check(){const okWas=$("mOk")?.checked??prev.ok;const sc=matchesFor($("mName").value);
+    st={exact:sc.find(x=>x.s===1)?.m||null,similar:sc};
+    if(!sc.length){box.innerHTML="";return;}
+    box.innerHTML=`<div class="matches${st.exact?" block":""}"><b>${esc(st.exact?L.exact:L.similar)}</b>
+      ${sc.map(x=>`<div class="match"><span>${esc(x.m.name)}</span><button type="button" class="btn small" data-rateid="${x.m.id}">${esc(L.rateThis)}</button></div>`).join("")}
+      ${st.exact?"":`<label class="confirm"><input type="checkbox" id="mOk"${okWas?" checked":""}><span>${esc(L.notSame)}</span></label>`}</div>`;}
+  $("mName").addEventListener("input",check);check();
+  box.addEventListener("click",e=>{const b=e.target.closest("[data-rateid]");if(b)openSheet("rate",b.dataset.rateid,true);});
+  $("addForm").addEventListener("submit",async e=>{e.preventDefault();const err=$("addErr");
+    const name=$("mName").value.trim().replace(/\s+/g," ");
+    if(norm(name).length<2){err.textContent=L.needName;return;}
+    if(st.exact){err.textContent=L.exact;return;}
+    if(st.similar.length&&!$("mOk")?.checked){err.textContent=L.needConfirm;return;}
+    const tags=[...document.querySelectorAll('input[name="mTag"]:checked')].map(i=>i.value);
+    $("addSave").disabled=true;$("addSave").textContent=L.saving;
+    try{const r=await api("addMeals",{meals:[{name,tags}]});
+      const id=r.added[0]?.id||r.skipped[0]?.id;
+      await load();if(id)openSheet("rate",id,true);else closeSheet();}
+    catch(x){err.textContent=errText(x);$("addSave").disabled=false;$("addSave").textContent=L.addSave;}});
+  if(!keep)setTimeout(()=>$("mName").focus(),30);
+}
+
+/* photo bulk add */
+function shrink(file){return new Promise((res,rej)=>{const img=new Image(),url=URL.createObjectURL(file);
+  img.onload=()=>{const k=Math.min(1,2000/Math.max(img.width,img.height)),c=document.createElement("canvas");
+    c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+    URL.revokeObjectURL(url);res(c.toDataURL("image/jpeg",.85).split(",")[1]);};
+  img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error("x"));};img.src=url;});}
+async function readPhoto(file){
+  const L=t();S.photo={state:"reading"};photoSheet();
+  try{const image=await shrink(file);const {meals}=await api("photo",{image});
+    S.photo={state:"review",items:(meals||[]).map(x=>({...x,orig:x.name,on:!matchesFor(x.name).length}))};}
+  catch(e){const c=e&&e.code;S.photo={state:"pick",err:c==="limit"?L.pLimit:c==="no_key"?L.pNoKey:L.pErr};}
+  finally{if(S.sheet&&S.sheet.kind==="photo")photoSheet();}
+}
+function photoSheet(){
+  const L=t(),P=S.photo;let body="";
+  if(!P||P.state==="pick"){
+    body=`<p class="hint">${esc(L.pHint)}</p><label class="drop" for="photoIn"><input type="file" id="photoIn" accept="image/*">
+      <span class="btn primary">${esc(L.pPick)}</span></label>${P&&P.err?`<p class="err" role="alert">${esc(P.err)}</p>`:""}`;
+  }else if(P.state==="reading"){
+    body=`<div class="drop" style="cursor:default"><div class="spin" aria-hidden="true"></div><p>${esc(L.pReading)}</p></div>`;
+  }else if(P.state==="review"&&!P.items.length){
+    body=`<p>${esc(L.pNone)}</p><div class="actions"><button type="button" class="btn" data-again>${esc(L.pAgain)}</button></div>`;
+  }else if(P.state==="review"){
+    body=`<p>${esc(L.pFound(P.items.length))}</p><div class="xlist">${P.items.map((it,i)=>{
+      const sc=matchesFor(it.name),ex=sc.find(x=>x.s===1),sm=!ex&&sc[0];
+      return `<div class="xrow"><input type="checkbox" data-xi="${i}" ${it.on&&!ex?"checked":""} ${ex?"disabled":""} aria-label="${esc(it.name)}">
+        <div><input type="text" id="xn-${i}" data-xn="${i}" value="${esc(it.name)}" maxlength="90" aria-label="${esc(L.nameLabel)}">
+        ${S.lang==="en"&&it.name_en&&it.name===it.orig?`<p class="men">${esc(it.name_en)}</p>`:""}
+        <div class="meta">${tagCodes(it.tags)}</div>
+        ${ex?`<span class="xnote dup">${esc(L.pDup)}</span>`:sm?`<span class="xnote">${esc(L.pSim(sm.m.name))}</span>`:""}</div></div>`;}).join("")}</div>
+      <p class="err" id="pErr" role="alert"></p>
+      <div class="actions"><button type="button" class="btn quiet" data-again>${esc(L.pAgain)}</button><span class="spacer"></span>
+        <button type="button" class="btn" data-close>${esc(L.cancel)}</button><button type="button" class="btn primary" id="pAdd"></button></div>`;
+  }else if(P.state==="done"){
+    body=`<p class="ok" role="status">${esc(L.pDone(P.added,P.skipped))}</p><div class="actions"><button type="button" class="btn primary" data-close>${esc(L.close)}</button></div>`;
+  }
+  $("panel").innerHTML=`<div class="phead"><h2 id="sheetTitle">${esc(L.pTitle)}</h2>${closeBtn()}</div>`+body;
+  const pick=()=>P&&P.items?P.items.filter(x=>x.on&&!isDup(x.name)&&norm(x.name).length>=2):[];
+  const label=()=>{const a=$("pAdd");if(a){const n=pick().length;a.textContent=L.pAdd(n);a.disabled=!n;}};label();
+  const inp=$("photoIn");if(inp)inp.onchange=()=>{const f=inp.files&&inp.files[0];if(f)readPhoto(f);};
+  $("panel").querySelectorAll("[data-again]").forEach(b=>b.onclick=()=>{S.photo={state:"pick"};photoSheet();});
+  $("panel").querySelectorAll("[data-xi]").forEach(c=>c.onchange=()=>{P.items[+c.dataset.xi].on=c.checked;label();});
+  $("panel").querySelectorAll("[data-xn]").forEach(c=>c.onchange=()=>{P.items[+c.dataset.xn].name=c.value.trim().replace(/\s+/g," ");photoSheet();});
+  const add=$("pAdd");
+  if(add)add.onclick=async()=>{const list=pick();if(!list.length)return;add.disabled=true;add.textContent=L.saving;
+    // A name the visitor edited gets a fresh translation on the server.
+    const meals=list.map(x=>({name:x.name,tags:x.tags,name_en:x.name===x.orig?x.name_en:""}));
+    try{const r=await api("addMeals",{meals});S.photo={state:"done",added:r.added.length,skipped:r.skipped.length+P.items.filter(x=>x.on&&isDup(x.name)).length};
+      await load();photoSheet();}
+    catch(e){$("pErr").textContent=errText(e);label();}};
+}
+
+/* merge (admin) */
+function mergeSheet(arg){
+  const L=t(),src=S.meals.find(m=>m.id===arg.src);if(!src)return closeSheet();
+  const cnt=id=>(S.meals.find(m=>m.id===id)||{}).c||0;
+  const head=`<div class="phead"><h2 id="sheetTitle">${esc(L.mTitle)}</h2>${closeBtn()}</div>`;
+  if(!arg.dst){
+    const q=norm(arg.q||"");
+    let opts=S.meals.filter(m=>m.id!==src.id).map(m=>({m,s:sim(norm(src.name),norm(m.name))}));
+    if(q)opts=opts.filter(x=>norm(x.m.name).includes(q)||norm(x.m.name_en).includes(q)||sim(q,norm(x.m.name))>=.6);
+    opts.sort((a,b)=>b.s-a.s||a.m.name.localeCompare(b.m.name));opts=opts.slice(0,8);
+    $("panel").innerHTML=head+`<p>${esc(L.mWith(src.name))}</p>
+      <input type="search" id="mergeQ" autocomplete="off" placeholder="${esc(L.mSearch)}" aria-label="${esc(L.mSearch)}" value="${esc(arg.q||"")}">
+      <div class="matches">${opts.length?opts.map(x=>`<div class="match"><span>${esc(x.m.name)} <span class="n">· ${esc(L.ratings(cnt(x.m.id)))}</span></span><button type="button" class="btn small" data-dst="${x.m.id}">${esc(L.merge)}</button></div>`).join(""):`<p class="hint">${esc(L.mNone)}</p>`}</div>`;
+    const qi=$("mergeQ");qi.oninput=()=>{const pos=qi.selectionStart;S.sheet.arg={src:src.id,q:qi.value};mergeSheet(S.sheet.arg);const n=$("mergeQ");n.focus();try{n.setSelectionRange(pos,pos)}catch(e){}};
+    $("panel").querySelectorAll("[data-dst]").forEach(b=>b.onclick=()=>{S.sheet.arg={src:src.id,dst:b.dataset.dst,keep:b.dataset.dst};mergeSheet(S.sheet.arg);});
+    return;}
+  const dst=S.meals.find(m=>m.id===arg.dst);if(!dst){S.sheet.arg={src:src.id};return mergeSheet(S.sheet.arg);}
+  $("panel").innerHTML=head+`<fieldset><legend>${esc(L.mKeep)}</legend><div class="xlist">${[dst,src].map(m=>`<label class="confirm"><input type="radio" name="mKeep" value="${m.id}"${arg.keep===m.id?" checked":""}><span>${esc(m.name)} <span class="n">· ${esc(L.ratings(cnt(m.id)))}</span></span></label>`).join("")}</div></fieldset>
+    <p class="hint">${esc(L.mInfo(cnt(src.id),cnt(dst.id)))}</p><p class="err" id="mErr" role="alert"></p>
+    <div class="actions"><button type="button" class="btn quiet" id="mBack">${esc(L.mBack)}</button><span class="spacer"></span>
+      <button type="button" class="btn" data-close>${esc(L.cancel)}</button><button type="button" class="btn primary" id="mGo">${esc(L.mDo)}</button></div>`;
+  $("panel").querySelectorAll('input[name="mKeep"]').forEach(r=>r.onchange=()=>{arg.keep=r.value;});
+  $("mBack").onclick=()=>{S.sheet.arg={src:src.id};mergeSheet(S.sheet.arg);};
+  $("mGo").onclick=async()=>{const go=$("mGo");go.disabled=true;
+    const keepId=arg.keep===src.id?src.id:dst.id,dropId=keepId===src.id?dst.id:src.id;
+    try{await api("merge",{key:S.adminKey,keepId,dropId});closeSheet();await load();loadMine();}
+    catch(e){$("mErr").textContent=errText(e);go.disabled=false;}};
+}
+
+/* ---------- boot ---------- */
+applyLang();
+if(!/^https:\/\/script\.google\.com\//.test(API_URL)){S.status="error";render();$("notice").textContent=t().notConfigured;}
+else{
+  load().then(loadMine);
+  if(S.adminKey)api("isAdmin",{key:S.adminKey}).then(r=>{S.owner=!!r.admin;if(!S.owner){try{localStorage.removeItem("mt-admin")}catch(e){}}render();}).catch(()=>{});
+}
+</script>
+</body>
+</html>
